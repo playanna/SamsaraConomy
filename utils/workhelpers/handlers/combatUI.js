@@ -419,7 +419,7 @@ const createFleeEmbed = (interaction, combat) => createResultEmbed(interaction, 
 function createRetryButtons() {
   try {
     return new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('work_again').setLabel('🗡️ Seek Another Battle').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('fightstart_again').setLabel('🗡️ Seek Another Battle').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId('sect_welcome').setLabel('🏯 Return to Sect').setStyle(ButtonStyle.Secondary)
     );
   } catch (error) {

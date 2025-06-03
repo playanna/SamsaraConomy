@@ -5,6 +5,7 @@ const {
   ButtonStyle
 } = require('discord.js');
 const createBaseEmbed = require('../../utils/embed');
+const { generateGitHubImageUrl } = require('../../utils/githubUtils');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -84,7 +85,7 @@ module.exports = {
         title: '🪷 天命轮回宗 | Destiny’s Samsara Sect 🪷',
         description: `> **☯️ 仙路漫漫，唯道作舟**\n> *"The Dao shall be your vessel."*\n ${line}\n\n${user}, the spiritual winds stir...`,
         color: 0x8a2be2,
-        image: 'https://github.com/playanna/Samsara-bot/blob/8e7afabadfc058ef1813cc000cb62e797100b6bf/images/realms/secthall/sectinitial.jpeg?raw=true',
+        image: generateGitHubImageUrl('images/realms/secthall/sectinitial.jpeg', '8e7afabadfc058ef1813cc000cb62e797100b6bf'),
         footer: {
           text: '「轮回无终，大道永恒」\n"Samsara is endless, yet the Great Dao is eternal."',
           iconURL: interaction.guild?.iconURL({ dynamic: true }) || undefined,

@@ -137,9 +137,7 @@ module.exports = {
       }
 
       return components;
-    };
-
-    // Update the message with the current state
+    };    // Update the message with the current state
     const updateMessage = async (interactionToUpdate, newPage, newCategory) => {
       page = newPage;
       currentCategory = newCategory;
@@ -152,16 +150,33 @@ module.exports = {
       const paginatedItems = currentItems.slice(page * itemsPerPage, (page + 1) * itemsPerPage);
 
       const embed = createInventoryEmbed(paginatedItems, page, totalPages, currentCategory);
-      const components = createNecessaryButtons();
-
-      try {
-        if (interactionToUpdate.deferred || interactionToUpdate.replied) {
+      const components = createNecessaryButtons();      try {
+        // For component interactions that are deferred
+        if (interactionToUpdate.deferred) {
           await interactionToUpdate.editReply({ embeds: [embed], components });
-        } else {
+        }
+        // For component interactions that haven't been responded to yet (check if update method exists)
+        else if (typeof interactionToUpdate.update === 'function' && !interactionToUpdate.replied && !interactionToUpdate.deferred) {
+          await interactionToUpdate.update({ embeds: [embed], components });
+        }
+        // For already replied interactions
+        else if (interactionToUpdate.replied) {
+          await interactionToUpdate.editReply({ embeds: [embed], components });
+        }
+        // For initial slash command
+        else {
           await interactionToUpdate.reply({ embeds: [embed], components });
         }
       } catch (error) {
         console.error('Error updating inventory message:', error);
+        // Fallback: try editReply if the interaction has been replied to
+        try {
+          if (interactionToUpdate.replied || interactionToUpdate.deferred) {
+            await interactionToUpdate.editReply({ embeds: [embed], components });
+          }
+        } catch (fallbackError) {
+          console.error('Fallback editReply failed:', fallbackError);
+        }
       }
     };
 
@@ -171,9 +186,7 @@ module.exports = {
     // Collector for navigation and category changes
     const filter = (i) => i.user.id === interaction.user.id && 
       (i.customId.startsWith('inv_') || i.customId === 'inv_category_select');
-    const collector = interaction.channel.createMessageComponentCollector({ filter, time: 300000 });
-
-    collector.on('collect', async (i) => {
+    const collector = interaction.channel.createMessageComponentCollector({ filter, time: 300000 });    collector.on('collect', async (i) => {
       let newPage = page;
       let newCategory = currentCategory;
 
@@ -188,7 +201,7 @@ module.exports = {
         newPage = Math.max(0, Math.ceil(totalItems / itemsPerPage) - 1);
       }
 
-      await i.deferUpdate();
+      // Try to update the message, the updateMessage function now handles all edge cases
       await updateMessage(i, newPage, newCategory);
     });
 

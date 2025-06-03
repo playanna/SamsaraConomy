@@ -1,7 +1,8 @@
 const sharp = require('sharp');
 const fetch = require('node-fetch');
+const { generateGitHubImageUrlWithCommit } = require('./githubUtils');
 
-const BASE_IMAGE_URL = 'https://github.com/playanna/Samsara-bot/blob/9b563ddb38ad41d06167b23fd46300fa31013f42/images/realms/secthall/japanese_nihonga_painting_abou%20(19).jpeg?raw=true';
+const BASE_IMAGE_URL = generateGitHubImageUrlWithCommit('images/realms/secthall/japanese_nihonga_painting_abou%20(19).jpeg', '9b563ddb38ad41d06167b23fd46300fa31013f42');
 // load the image in a smaller size to reduce memory usage
 
 let cachedBaseImageBuffer = null;

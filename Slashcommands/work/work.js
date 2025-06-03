@@ -3,13 +3,14 @@ const { initializeUserDataWithCache } = require('../../utils/workhelpers/handler
 const { calculateExpeditionOutcome, applyLossOutcome, applySuccessOutcome } = require('../../utils/workhelpers/handlers/outcomeHandler.js');
 const { createLossEmbed, createSuccessEmbed } = require('../../utils/workhelpers/embedHelpers.js');
 const runExtraSuccessLogic = require('../../utils/workhelpers/extraSuccessHandler.js');
+const {emojis} = require('../../data/emojis.js');
 const rodStart = require('../rod_start.js');
 const fightstart = require('./fightstart.js');
 
 const retryRow = new ActionRowBuilder().addComponents(
-  new ButtonBuilder().setCustomId('work_again').setLabel('✨ Work Again').setStyle(ButtonStyle.Primary),
+  new ButtonBuilder().setCustomId('work_again').setLabel('Expedition!').setStyle(ButtonStyle.Primary),
   new ButtonBuilder().setCustomId('sect_welcome').setLabel('Return to Sect').setStyle(ButtonStyle.Secondary),
-  new ButtonBuilder().setCustomId('sell_all').setLabel('💰 Sell All').setStyle(ButtonStyle.Danger),
+  new ButtonBuilder().setCustomId('sell_all').setLabel('Sell All').setEmoji(`${emojis.heavenlyorbs}`).setStyle(ButtonStyle.Danger),
 );
 
 const cooldownTimestamps = new Map();
@@ -86,9 +87,11 @@ async function performWork(interaction, isButton = false) {
     const lastUsed = cooldownTimestamps.get(userId) || 0;
 
     if (now - lastUsed < cooldown) {
-      const timeLeft = cooldown - (now - lastUsed);      return sendReply(interaction, {
+      const timeLeft = cooldown - (now - lastUsed);      
+      
+    return sendReply(interaction, {
         content: `⏳ Your Qi is rebalancing.\n**Cooldown:** ${(cooldown / 1000).toFixed(1)}s\n**Time left:** ${(timeLeft / 1000).toFixed(1)}s`,
-        flags: 64 // MessageFlags.Ephemeral
+        flags: 64 // MessageFlags.Ephemeral, wonder if i should add buttons here
       }, isButton);
     }
 
@@ -116,10 +119,10 @@ async function performWork(interaction, isButton = false) {
 
       return sendReply(interaction, { embeds: [embed], components: [retryRow] }, isButton);
     }    // --- Outcome is NOT a loss.
-    if (Math.random() < 0.2) {
+    if (Math.random() < 0.05) { // 5% chance cus im a lazy bitch and dont wanna fight
       try {
-        // Use the exported startCombat function with isButton=true since interaction is already deferred
-        return await fightstart.startCombat(interaction, true);
+        // Show encounter choice instead of directly starting combat
+        return await fightstart.showEncounterChoice(interaction, userData, true);
       } catch (extraErr) {
         console.error('Extra file error:', extraErr);
         return sendReply(interaction, {
@@ -184,6 +187,11 @@ module.exports = {
     if (interaction.customId === 'work_again') {
       await performWork(interaction, true);
     }
+  },
+
+  // Export performWork for use by other modules
+  async performWork(interaction, isButton = true) {
+    return await performWork(interaction, isButton);
   },
 
   stage: 'beta',

@@ -72,11 +72,11 @@ module.exports = {
             }            if (id.startsWith('clanupgrade_')) {
                 handlerPath = path.join(__dirname, '../utils/buttons/clan/clanupgrade_router.js');
               }            // Handle combat buttons (fightstart command)
-            if (id.startsWith('combat_') || id === 'fightstart_again' || id.startsWith('technique_use_') || id === 'combat_back_to_actions') {
+            if (id.startsWith('combat_') || id === 'fightstart_again' || id.startsWith('technique_use_') || id === 'combat_back_to_actions' || id.startsWith('encounter_')) {
               const fightstart = require('../Slashcommands/work/fightstart.js');
               await fightstart.handleButton(interaction);
               return;
-            }            // Handle qi technique replacement buttons
+            }// Handle qi technique replacement buttons
             if (id.startsWith('replace_technique_')) {
               handlerPath = path.join(__dirname, '../utils/buttons/replace_technique_router.js');
             }            // Handle qi view buttons (navigation and equip/unequip)
@@ -123,9 +123,8 @@ module.exports = {
           // Handle StringSelectMenu interactions
         else if (interaction.isStringSelectMenu()) {
             const id = interaction.customId;
-            
-            // Skip interactions that are handled by collectors in slash commands
-            const collectorHandledIds = ['realm-select'];
+              // Skip interactions that are handled by collectors in slash commands
+            const collectorHandledIds = ['realm-select', 'inv_category_select'];
             if (collectorHandledIds.includes(id)) {
                 return; // Let the collector handle this interaction
             }
