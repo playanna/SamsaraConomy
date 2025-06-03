@@ -5,6 +5,7 @@ const Inventory = require('../../models/Multipliers/inventory');
 const createBaseEmbed = require('../../utils/embed');
 const Xp = require('../../models/XP/xp');
 const { cultivationStages } = require('../../utils/cultivationStages.js');
+const { generateGitHubImageUrlWithCommit } = require('../../utils/githubUtils');
 
 const DEFAULT_SETTINGS = {
   expeditions: 0,
@@ -67,7 +68,7 @@ module.exports = {
           iconURL: user.displayAvatarURL({ dynamic: true }),
         },
         thumbnail: user.displayAvatarURL({ dynamic: true }),
-        image: 'https://github.com/playanna/Samsara-bot/blob/d6f9b0fbc4f8c88bfe83ee413c4a164569d4a09f/images/realms/secthall/meditationchamber.jpeg?raw=true',
+        image: generateGitHubImageUrlWithCommit('images/realms/secthall/meditationchamber.jpeg', 'd6f9b0fbc4f8c88bfe83ee413c4a164569d4a09f'),
         color: 0x5e35b1,
         description: [
           `> -# *"It rains outside your quiet chamber as you review your cultivation journey..."*`,

@@ -5,7 +5,7 @@ const itemSchema = new mongoose.Schema({
   itemId: { type: String, required: true }, // Prevents duplicates
   name: { type: String, required: true },
   baseName: { type: String, required: true }, // "Enlightened Soul Pearl" (without rarity prefix)
-  
+  emoji : { type: String, default: '🔮' }, // Default emoji for items
   // Gameplay Stats
   value: { type: Number, required: true },
   debt: { type: Number, default: 0 },

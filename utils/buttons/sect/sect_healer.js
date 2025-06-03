@@ -3,6 +3,7 @@ const createBaseEmbed = require('../../../utils/embed.js');
 const { initializeUserDataWithCache } = require('../../../utils/workhelpers/handlers/userHandler.js');
 const UserHealth = require('../../../models/Health/userHealth.js');
 const { emojis } = require('../../../data/emojis.js');
+const { generateGitHubImageUrl } = require('../../../utils/githubUtils.js');
 
 module.exports = {
   data: {
@@ -46,7 +47,7 @@ module.exports = {
             '*"Return when your qi foundation requires restoration."*'
           ].join('\n'),
           color: 0x00FF7F,
-          image: 'https://github.com/playanna/Samsara-bot/blob/main/images/realms/secthall/healer.jpeg?raw=true'
+          image: generateGitHubImageUrl('images/realms/secthall/healer.jpeg')
         });
         
         const backButton = new ActionRowBuilder().addComponents(

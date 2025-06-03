@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
 const createBaseEmbed = require('../../utils/embed');
+const { generateGitHubImageUrlWithCommit } = require('../../utils/githubUtils');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,7 +21,7 @@ module.exports = {
         `\n*"Where shall your Dao lead you today, disciple?"*`
       ].join('\n'),
       color: 0x5e35b1,
-      image: 'https://github.com/playanna/Samsara-bot/blob/8e7afabadfc058ef1813cc000cb62e797100b6bf/images/realms/secthall/secthall.jpeg?raw=true',
+      image: generateGitHubImageUrlWithCommit('images/realms/secthall/secthall.jpeg', '8e7afabadfc058ef1813cc000cb62e797100b6bf'),
       footer: {
         text: '「轮回无终，大道永恒」\n"Samsara is endless, yet the Great Dao is eternal."',
         iconURL: interaction.guild?.iconURL({ dynamic: true }) || null, // Reuse emblem

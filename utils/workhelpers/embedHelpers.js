@@ -32,41 +32,22 @@ const emojiMaps = createEmojiMaps();
 
 const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 
-function getEmojiMapForType(type = '') {
-  return emojiMaps[type.toLowerCase()] || emojiMaps.souls;
-}
-
 function formatLootText(loots = {}) {
   const result = [];
 
   for (const [type, items] of Object.entries(loots)) {
     if (!items.length) continue;
-    const emojiMap = getEmojiMapForType(type);
     const group = new Map();
 
     for (let i = 0; i < items.length; i++) {
-      const { baseName, rarity = 'common', quantity = 1 } = items[i];
-      const key = `${baseName}|||${rarity}`;
+      const { baseName, rarity = 'common', quantity = 1, emoji = '🔮' } = items[i];
+      const key = `${baseName}|||${emoji}`; // Use emoji instead of rarity for grouping
       group.set(key, (group.get(key) || 0) + quantity);
     }
 
-    const display = new Map();
     for (const [key, qty] of group) {
-      const [name, rarity] = key.split('|||');
-      if (!display.has(name)) display.set(name, []);
-      display.get(name).push({ rarity, qty });
-    }
-
-    for (const [name, rarities] of display) {
-      const line = rarityOrder
-        .filter(r => rarities.some(e => e.rarity === r))
-        .map(r => {
-          const match = rarities.find(e => e.rarity === r);
-          return match ? `${emojiMap[r] || `[${r}]`}x${match.qty}\`[${r}]\`` : null;
-        })
-        .filter(Boolean)
-        .join(', ');
-      result.push(`◈ +**${name}**: ${line}`);
+      const [name, emoji] = key.split('|||');
+      result.push(`◈ +**${qty}** ${emoji} **${name}**`);
     }
   }
 

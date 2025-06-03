@@ -4,6 +4,8 @@ const {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   ComponentType,
+  ButtonBuilder,
+  ButtonStyle,
 } = require('discord.js');
 const Inventory = require('../../models/Multipliers/inventory');
 const ExpeditionSettings = require('../../models/Multipliers/expeditionSetting');
@@ -61,9 +63,11 @@ module.exports = {
       }
 
       const currentRealm = realms.find(r => r.key === settings.realm) || realms[0];
+      const initialimage = await getRandomRealmImage(currentRealm.key);
 
       const embed = createBaseEmbed({
         interaction,
+        image: initialimage,
         description: generateStatsBlock(username, cultivationStage, currentRealm, unlockedRealms, lockedRealms),
         color: 0x8A2BE2,
       });
@@ -82,7 +86,7 @@ module.exports = {
       const row = new ActionRowBuilder().addComponents(menu);      await interaction.reply({
         embeds: [embed],
         components: [row],
-        flags: 64
+        // flags: 64   // Remove ephemeral flag to make message public
       });
 
       const message = await interaction.fetchReply();
@@ -126,12 +130,21 @@ module.exports = {
             }"`,
             iconURL: interaction.guild?.iconURL({ dynamic: true }) || null
           }
-        });        await selectInteraction.reply({
-          embeds: [confirmEmbed]
+        });
+
+        // Add Sect halls button
+        const sectHallButton = new ButtonBuilder()
+          .setCustomId('sect_hall')
+          .setLabel('Sect halls')
+          .setStyle(ButtonStyle.Primary);
+        const buttonRow = new ActionRowBuilder().addComponents(sectHallButton);
+
+        await selectInteraction.reply({
+          embeds: [confirmEmbed],
+          components: [buttonRow]
         });
 
         await interaction.editReply({
-          embeds: [embed.setImage(selectedRealm.image)],
           components: []
         });
       });
@@ -170,44 +183,32 @@ function getKarmicStageName(index) {
 
 // Utility: Embed Text Generator
 function generateStatsBlock(username, stage, current, unlocked, locked) {
+  // Compact unlocked realms
   const unlockedBlock = unlocked.length
-      ? unlocked.map(r =>
-          `> • ${r.name} (Stage **${getKarmicStageName(r.minStage)}** +)\n > -# • "${r.lore.slice(0, 60)}..."`).join('\n\n')
-      : '> No Hablo Español...';
+    ? unlocked.map(r =>
+        `• **${r.name}** (Stage ${getKarmicStageName(r.minStage)})\n  └ "${r.lore.slice(0, 40)}..."`).join('\n')
+    : 'None unlocked yet.';
+
+  // Only show next locked realm
   const lockedBlock = locked.length
-        ? `> • ${locked[0].name} (Stage **${getKarmicStageName(locked[0].minStage)}** required)\n > -# • "${locked[0].lore.slice(0, 60)}..."`
-        : '> The Astral Compass is still calibrating...';
+    ? `• **${locked[0].name}** (Need: ${getKarmicStageName(locked[0].minStage)})\n  └ "${locked[0].lore.slice(0, 40)}..."`
+    : 'All realms unlocked!';
 
-return `** GUIDE WEN'S EMERGENCY REALM NAVIGATION **  
-==========================================  
-[ A cracked jade token spins wildly as ${username}'s cultivation stage sets off alarm bells ]  
+  return `**Guide Wen's Astral Compass**  
+**Current Realm:** ${current.name}  
+> "${current.lore}"  
+Danger: **${current.danger}** (${current.dangerLevel > 7 ? "Oh fuck no" : "Probably fine?"})
 
-**[ Current Realm Alignment ]**  
-> ${current.name}  
-> -# "${current.lore}"  
-${current.danger} Danger Threshold *(Guide Wen's verdict: "${current.dangerLevel > 7 ? "Oh fuck no" : "Probably fine? Maybe?"}")*  
+**Karmic Stage:** ${getKarmicStageName(stage)}  
+${stage > 5 ? "🎯 You're a target now." : "🐣 Still a small fry."}
 
-> **[ Your Karmic Stage ]**
-> ☯ **${getKarmicStageName(stage)}** (Translation: "${stage > 5 ? "Congratulations, you’re now a target" : "Still small fry. Enjoy it."}")
+**Unlocked Realms:**  
+${unlockedBlock}
 
-Listen carefully. Your realm choice determines:  
-- How many limbs you keep
-> -# loot Amount, karmic debt
-- Whether I have to bribe a goddess to un-drown you  
-> -# Tribulation rate
-- My patience level (currently: fraying)
-> -# Guide wen is just overreacting
+**Sealed Realms:**  
+${lockedBlock}
 
-**[ "Safe" Realms ]**  \n-# (Disclaimer: "safe" means "only mildly cursed") 
-${unlockedBlock}  
-
-**[ Sealed Realms ]** \n-# (Guide Wen's notes: "DO NOT TOUCH UNLESS YOU WANT TO MEET MY GRANDFATHER'S GHOST AGAIN")
-${lockedBlock}  
-
--# **[ Bonus: Guide Wen's Live Commentary ]**
--# " ${current.dangerLevel > 5 ?  
-  ' ⚠ *sound of frantic talisman-ripping* "Why do you people ALWAYS pick the worst options—"' :  
-  ' ...*sigh* "Fine, but if this goes wrong, I’m keeping your shoes as collateral."'}"`;
+*Guide Wen: ${current.dangerLevel > 5 ? "⚠ Why do you pick the worst options—" : "Try not to die, okay?"}*`;
 }
 
 // Realm-specific bonuses
