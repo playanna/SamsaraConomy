@@ -1,4 +1,141 @@
+# Dependencies
 node_modules/
-config/config.json
-clearglobalcommands.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Environment variables and sensitive configuration
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+config/config.json
+config.json
+
+# Bot tokens and API keys
+token.txt
+bot-token.txt
+secrets.json
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+database.json
+db/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# Temporary folders
+tmp/
+temp/
+.tmp/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+.classpath
+
+# Build outputs
+dist/
+build/
+out/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# Deployment files - these are safe to track since they use environment variables
+# If you prefer not to track deployment scripts, uncomment these lines:
+# clearglobalcommands.js
+# deploycommands.js
+
+# Bot-specific files that shouldn't be tracked
+bot_data/
+user_data/
+backups/
+*.bak
+
+# Canvas/image generation cache
+canvas_cache/
+image_cache/
+
+# MongoDB local data (if using local MongoDB)
+data/db/
+mongod.lock
+
+# Additional Discord bot sensitive files
+application.yml
+application.yaml
+*.pem
+*.p12
+*.key
+*.crt
+
+# Development and testing files
+test_data/
+debug_logs/
+crash_dumps/
+
+# System and deployment files
+*.pid
+*.lock
+*.out
+nohup.out
+
+# Any additional config files that might contain secrets
+local_config.json
+private_config.json
