@@ -1,0 +1,25 @@
+fix(combat): resolve Discord interaction expiry errors and improve system stability
+
+This commit addresses critical DiscordAPIError[10062] "Unknown interaction" errors 
+that occurred when combat sessions exceeded Discord's 15-minute interaction limit.
+
+Key Changes:
+- Enhanced sendReply() with intelligent fallback to channel messages
+- Added comprehensive expired interaction detection across combat system
+- Implemented graceful degradation that preserves combat state
+- Strengthened error handling with specific Discord API error codes
+- Added conditional UI updates that respect interaction validity
+
+Files Modified:
+- utils/workhelpers/handlers/combatUtils.js
+- utils/workhelpers/handlers/combatProcessor.js  
+- Slashcommands/work/fightstart.js
+
+Impact:
+- Combat sessions no longer crash due to expired interactions
+- Users receive clear feedback about session status
+- Combat progress is preserved even when UI interactions fail
+- Improved overall system stability and user experience
+
+Fixes: Combat system stability issues
+Resolves: DiscordAPIError[10062] Unknown interaction errors

@@ -33,14 +33,14 @@ async function processCombatAction(interaction, action) {
     }, true);
   }
 
-  // Check interaction age
-  if (isInteractionExpired(interaction)) {
-    console.warn(`Combat action interaction too old for user ${interaction.user.id}`);
-    return;
+  // Check interaction age - if expired, still process the action but handle response differently
+  const interactionExpired = isInteractionExpired(interaction);
+  if (interactionExpired) {
+    console.warn(`Combat action interaction too old for user ${interaction.user.id}, but processing action silently`);
   }
   
   let logMessage = '';
-    switch (action) {
+  switch (action) {
     case 'attack':
       logMessage = await processUserAttack(combat);
       break;
@@ -49,14 +49,21 @@ async function processCombatAction(interaction, action) {
       break;
     case 'special':
       // Show technique selection instead of using generic special
-      await showTechniqueSelection(interaction, combat);
+      if (!interactionExpired) {
+        await showTechniqueSelection(interaction, combat);
+      }
       return; // Don't continue with normal combat flow
     case 'technique_selection':
       // User clicked "Channel Qi" - show technique selection
-      await showTechniqueSelection(interaction, combat);
-      return;    case 'back_to_actions':
+      if (!interactionExpired) {
+        await showTechniqueSelection(interaction, combat);
+      }
+      return;
+    case 'back_to_actions':
       // User clicked back from technique selection
-      await updateCombatMessage(interaction, combat);
+      if (!interactionExpired) {
+        await updateCombatMessage(interaction, combat);
+      }
       return;
     case 'flee':
       logMessage = await processUserFlee(combat, interaction);
@@ -76,7 +83,11 @@ async function processCombatAction(interaction, action) {
   
   // Switch to creature turn
   combat.turn = 'creature';
-  await updateCombatMessage(interaction, combat);
+  
+  // Only update combat message if interaction isn't expired
+  if (!interactionExpired) {
+    await updateCombatMessage(interaction, combat);
+  }
     // Process creature turn after a delay
   setTimeout(async () => {
     try {
@@ -168,15 +179,22 @@ async function showTechniqueSelection(interaction, combat) {
 
 // Process technique usage
 async function processTechniqueUsage(interaction, techniqueId) {
-  const combat = getCombatSession(interaction.user.id);
-  if (!combat) {
-    return sendReply(interaction, { content: 'No active combat found!', flags: 64 }, true);
-  }
-
-  if (combat.turn !== 'user') {
-    return sendReply(interaction, { content: 'It\'s not your turn!', flags: 64 }, true);
-  }
   try {
+    const combat = getCombatSession(interaction.user.id);
+    if (!combat) {
+      return sendReply(interaction, { content: 'No active combat found!', flags: 64 }, true);
+    }
+
+    if (combat.turn !== 'user') {
+      return sendReply(interaction, { content: 'It\'s not your turn!', flags: 64 }, true);
+    }
+    
+    // Check if interaction is expired
+    const interactionExpired = isInteractionExpired(interaction);
+    if (interactionExpired) {
+      console.warn(`Technique usage interaction expired for user ${interaction.user.id}, processing silently`);
+    }
+    
     const logMessage = await processQiTechnique(combat, techniqueId, interaction.user.id);
     combat.combatLog.push(logMessage);
     
@@ -191,7 +209,11 @@ async function processTechniqueUsage(interaction, techniqueId) {
     
     // Switch to creature turn
     combat.turn = 'creature';
-    await updateCombatMessage(interaction, combat);
+    
+    // Only update combat message if interaction isn't expired
+    if (!interactionExpired) {
+      await updateCombatMessage(interaction, combat);
+    }
     
     // Process creature turn after delay (same as normal combat flow)
     setTimeout(async () => {
