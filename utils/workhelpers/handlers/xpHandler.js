@@ -56,8 +56,6 @@ async function applyXpAndStats({ xpData, settings, multipliers, lootMultiplier, 
   
   sectrod.stats.catchRate = finalLootMultiplier;
   inventory.totalKarmicDebt += finalXp; // Using final XP for karmic debt
-  console.log(`sectrod.stats.catchRate: ${sectrod.stats.catchRate}, lootMultiplier: ${finalLootMultiplier}`);
-
   settings.expeditions++;
   settings.winStreak++;
   settings.longestWinStreak = Math.max(settings.winStreak, settings.longestWinStreak);

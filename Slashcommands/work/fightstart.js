@@ -5,6 +5,7 @@ const { calculateUserStats } = require('../../utils/workhelpers/handlers/combatC
 const { createCombatEmbed, createCombatButtons } = require('../../utils/workhelpers/handlers/combatUI.js');
 const { sendReply, isInteractionExpired } = require('../../utils/workhelpers/handlers/combatUtils.js');
 const { processCombatAction } = require('../../utils/workhelpers/handlers/combatProcessor.js');
+const {emojis} = require('../../data/emojis.js');
 const UserHealth = require('../../models/Health/userHealth.js');
 const getUsername = require('../../utils/usernamesCache.js');
 
@@ -215,8 +216,9 @@ module.exports = {
           });
 
           const retryRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('work_again').setLabel('🗡️ Seek Another Battle').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('sect_welcome').setLabel('🏯 Return to Sect').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('work_again').setLabel('Expedition!').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId('sect_welcome').setLabel('Return to Sect').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('sell_all').setLabel('Sell All').setEmoji(`${emojis.heavenlyorbs}`).setStyle(ButtonStyle.Danger),
           );
 
           const [embed, extraEmbed] = await Promise.all([
