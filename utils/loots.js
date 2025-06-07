@@ -1,3 +1,8 @@
+// Optimized loot system using LootDataManager for lazy loading
+const { lootDataManager } = require('./dataManagers');
+
+// Static loot tables for backward compatibility and data initialization
+// These are only loaded when accessed through the LootDataManager
 const lootTables = {
     'verdant': [
         { name: 'Lost Soul Spark', value: 5, debt: 5, type: 'soul', emoji: '✨' },
@@ -76,14 +81,10 @@ function calculateDynamicWeights(rodStats) {
 }
 
 function getRandomLoot(realm = 'verdant', rodStats = { resonance: 0, precision: 0 }) {
-    const lootPool = lootTables[realm] || lootTables.verdant;
+    // Use LootDataManager for optimized, lazy-loaded categorized data
+    const categorizedItems = lootDataManager.getCategorizedLootByRealm(realm);
     const stats = rodStats.stats || rodStats;
     const weights = calculateDynamicWeights(stats);
-
-    const categorizedItems = {
-        soulItems: lootPool.filter(item => item.type === 'soul' || item.type === 'karma'),
-        materialItems: lootPool.filter(item => item.type !== 'soul' && item.type !== 'karma')
-    };
 
     const categoryRoll = Math.random();
     const selectedItems = categoryRoll < weights.soulItems && categorizedItems.soulItems.length > 0
@@ -111,20 +112,22 @@ function getRandomLoot(realm = 'verdant', rodStats = { resonance: 0, precision: 
 
 // 🔹 EXPEDITION LOOT - 95% chance for material items (ores, artifacts, alchemy)
 function getExpeditionLoot(realm = 'verdant', rodStats = { resonance: 0, precision: 0 }) {
-    const lootPool = lootTables[realm] || lootTables.verdant;
+    // Use LootDataManager for optimized, lazy-loaded categorized data
+    const categorizedItems = lootDataManager.getCategorizedLootByRealm(realm);
     
-    const categorizedItems = {
-        soulItems: lootPool.filter(item => item.type === 'soul' || item.type === 'karma'),
-        materialItems: lootPool.filter(item => item.type === 'material' || item.type === 'artifact' || item.type === 'alchemy')
-    };
+    // For expeditions, we want specifically material, artifact, and alchemy items
+    // Filter further to exclude soul/karma items completely
+    const expeditionItems = categorizedItems.materialItems.filter(item => 
+        item.type === 'material' || item.type === 'artifact' || item.type === 'alchemy'
+    );
 
     // 95% chance for material items during expeditions
     const categoryRoll = Math.random();
-    const selectedItems = categoryRoll < 0.95 && categorizedItems.materialItems.length > 0
-        ? categorizedItems.materialItems
+    const selectedItems = categoryRoll < 0.95 && expeditionItems.length > 0
+        ? expeditionItems
         : (categorizedItems.soulItems.length > 0
             ? categorizedItems.soulItems
-            : categorizedItems.materialItems);
+            : expeditionItems);
 
     const baseItem = selectedItems[Math.random() * selectedItems.length | 0];
 
@@ -145,13 +148,9 @@ function getExpeditionLoot(realm = 'verdant', rodStats = { resonance: 0, precisi
 
 // 🔹 FISHING LOOT - Higher chance for soul items based on rod resonance
 function getFishingLoot(realm = 'verdant', rodStats = { resonance: 0, precision: 0 }) {
-    const lootPool = lootTables[realm] || lootTables.verdant;
+    // Use LootDataManager for optimized, lazy-loaded categorized data
+    const categorizedItems = lootDataManager.getCategorizedLootByRealm(realm);
     const stats = rodStats.stats || rodStats;
-    
-    const categorizedItems = {
-        soulItems: lootPool.filter(item => item.type === 'soul' || item.type === 'karma'),
-        materialItems: lootPool.filter(item => item.type !== 'soul' && item.type !== 'karma')
-    };
 
     // Base 70% chance for soul items, enhanced by resonance
     const resonanceBonus = Math.min(0.25, (stats.resonance || 0) / 400); // Up to 25% bonus
@@ -181,4 +180,30 @@ function getFishingLoot(realm = 'verdant', rodStats = { resonance: 0, precision:
     };
 }
 
-module.exports = { getRandomLoot, getExpeditionLoot, getFishingLoot, lootTables };
+// Backward compatibility function for direct loot table access
+// Note: This loads all loot tables at once, consider using specific realm methods
+function getLootTables() {
+    return lootDataManager.getAllLootTables();
+}
+
+// Get specific realm loot table (optimized)
+function getLootTableByRealm(realm = 'verdant') {
+    return lootDataManager.getLootTableByRealm(realm);
+}
+
+// Advanced loot generation using the data manager
+function getAdvancedLoot(realm = 'verdant', playerLevel = 1) {
+    return lootDataManager.getAdvancedRealmLoot(realm, playerLevel);
+}
+
+module.exports = { 
+    getRandomLoot, 
+    getExpeditionLoot, 
+    getFishingLoot, 
+    lootTables,
+    getLootTables,
+    getLootTableByRealm,
+    getAdvancedLoot,
+    // Export the data manager for advanced usage
+    lootDataManager
+};

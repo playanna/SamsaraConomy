@@ -1,5 +1,5 @@
 const { generateLoot, categorizeLoot } = require('./lootHandler');
-const { handleLootStorage } = require('./inventoryHandler');
+const { handleLootStorageOptimized, getOrMigrateInventory } = require('./inventoryHandler');
 const { updateQuestProgressFromLoot } = require('./questHandler');
 const { applyXpAndStats, calculateXpMultiplier, persistAll } = require('./xpHandler');
 const { getRandomInt } = require('../../../utils/mathUtils');
@@ -33,7 +33,12 @@ async function applySuccessOutcome({ outcome, xpData, settings, multipliers, inv
   const loots = computeLoot(outcome, sectrod);
   const { soulTypeBoost, mythicDrops } = analyzeLoot(loots);
 
-  const { totalLootValue, totalKarmicDebt } = await handleLootStorage({ settings, handDoc, inventory, loots });
+  const { totalLootValue, totalKarmicDebt } = await handleLootStorageOptimized({ 
+    settings, 
+    handDoc, 
+    inventory: { userId: inventory.userId || inventory._id || xpData.userId }, // Ensure we have userId
+    loots 
+  });
 
   const baseXp = (totalKarmicDebt + (totalLootValue / 2)) * soulTypeBoost;
   const totalMultiplier = await calculateXpMultiplier(xpData.userId, multipliers);
@@ -106,10 +111,14 @@ async function applyLossOutcome({ handDoc, xpData, settings, outcome, sectrod, i
   const totalLootValue = loots.reduce((sum, item) => sum + item.value * item.quantity, 0);
   const estimatedValue = totalLootValue * outcome.lossProtection;
 
-  const lostXp = Math.floor(inventory.totalKarmicDebt * 0.01 * outcome.lossProtection);
+  // Get the optimized inventory to access totalKarmicDebt
+  const optimizedInventory = await getOrMigrateInventory(inventory.userId || inventory._id || xpData.userId);
+  
+  const lostXp = Math.floor(optimizedInventory.totalKarmicDebt * 0.01 * outcome.lossProtection);
   const lossCoins = estimatedValue * 4;
 
-  inventory.totalKarmicDebt = Math.max(0, inventory.totalKarmicDebt - lostXp);
+  // Update optimized inventory karmic debt
+  optimizedInventory.totalKarmicDebt = Math.max(0, optimizedInventory.totalKarmicDebt - lostXp);
   xpData.xp = Math.max(0, xpData.xp - lostXp);
   xpData.level = computeLevel(xpData.xp);
   handDoc.balance = Math.max(0, handDoc.balance - lossCoins);
@@ -120,7 +129,7 @@ async function applyLossOutcome({ handDoc, xpData, settings, outcome, sectrod, i
     xpData.save(),
     handDoc.save(),
     settings.save(),
-    inventory.save()
+    optimizedInventory.save()
   ]);
 
   return { lostXp, lossCoins };

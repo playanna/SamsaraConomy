@@ -38,8 +38,8 @@ const userQiTechniquesSchema = new mongoose.Schema({
   lastUpdated: { type: Date, default: Date.now }
 });
 
-// Add indexes for faster queries
-userQiTechniquesSchema.index({ userId: 1 });
+// Note: userId index not needed - unique constraint creates implicit index
+// Other indexes for performance optimization
 userQiTechniquesSchema.index({ 'equippedTechniques.techniqueId': 1 });
 
 const UserQiTechniques = mongoose.model('UserQiTechniques', userQiTechniquesSchema);

@@ -6,13 +6,17 @@ const SectRod = require('../../../models/Equipment/sectrod');
 const UserStats = require('../../../models/Combat/userStats');
 
 async function calculateUserStats(userData) {
-  // Check if we have existing persistent stats
-  let userStats = await UserStats.findOne({ userId: userData.userId });
-    // If stats exist and don't need recalculation, return cached values
-  if (userStats && !userStats.needsRecalculation(userData)) {
+  // Check if we have existing persistent stats - use .lean() for read-only query
+  let userStats = await UserStats.findOne({ userId: userData.userId })
+    .select('userId attack defense speed level stage cultivationLevel realmMultiplier gearBonuses rodBonuses baseAttack baseDefense baseSpeed lastUpdated lastCalculated statVersion')
+    .lean();
+    
+  // If stats exist and don't need recalculation, return cached values
+  if (userStats && !needsRecalculationLean(userStats, userData)) {
     const currentHealth = userData.healthData?.currentHealth || userData.healthData?.maxHealth || 100;
     const maxHealth = userData.healthData?.maxHealth || 100;
-      const cachedStats = {
+    
+    const cachedStats = {
       health: currentHealth,
       maxHealth: maxHealth,
       // Use the stored final stats (which include all bonuses)
@@ -22,7 +26,8 @@ async function calculateUserStats(userData) {
       // Also provide base stats
       baseAttack: userStats.baseAttack || userStats.attack, // Fallback for older records
       baseDefense: userStats.baseDefense || userStats.defense,
-      baseSpeed: userStats.baseSpeed || userStats.speed,      level: userStats.level,
+      baseSpeed: userStats.baseSpeed || userStats.speed,
+      level: userStats.level,
       stage: userStats.stage,
       cultivationLevel: userStats.cultivationLevel,
       realmMultiplier: userStats.realmMultiplier,
@@ -36,13 +41,18 @@ async function calculateUserStats(userData) {
   // Calculate new stats
   const newStats = await calculateBaseStats(userData);
   
-  // Create or update persistent stats
+  // Create or update persistent stats - need full document for this
+  let userStatsDoc;
   if (!userStats) {
-    userStats = new UserStats({ userId: userData.userId });
+    userStatsDoc = new UserStats({ userId: userData.userId });
+  } else {
+    userStatsDoc = await UserStats.findOne({ userId: userData.userId });
   }
   
-  userStats.updateStats(newStats);
-  await userStats.save();    // Return complete stats including health
+  userStatsDoc.updateStats(newStats);
+  await userStatsDoc.save();
+
+  // Return complete stats including health
   const currentHealth = userData.healthData?.currentHealth || newStats.maxHealth;
   const finalStats = {
     health: currentHealth,
@@ -57,12 +67,26 @@ async function calculateUserStats(userData) {
     baseSpeed: newStats.baseSpeed,
     level: newStats.level,
     stage: newStats.stage,
-    cultivationLevel: newStats.cultivationLevel,    realmMultiplier: newStats.realmMultiplier,
+    cultivationLevel: newStats.cultivationLevel,
+    realmMultiplier: newStats.realmMultiplier,
     gearBonuses: newStats.gearBonuses,
     rodBonuses: newStats.rodBonuses
   };
   
   return finalStats;
+}
+
+// Helper function to check if recalculation is needed for lean documents
+function needsRecalculationLean(userStats, userData) {
+  if (!userStats || !userStats.lastCalculated) return true;
+  
+  const cacheTime = 5 * 60 * 1000; // 5 minutes
+  const isStale = (Date.now() - userStats.lastCalculated.getTime()) > cacheTime;
+  
+  // Check if level or stage changed
+  const levelChanged = userStats.level !== userData.xpData?.level;
+  const stageChanged = userStats.stage !== userData.inventory?.karmicRealms;  
+  return isStale || levelChanged || stageChanged;
 }
 
 // Separate function to calculate base stats with improved formulas
@@ -183,9 +207,12 @@ async function getEquippedGearBonuses(userId) {
     defenseBonus: 0,
     speedBonus: 0
   };
-
   try {
-    const equippedGear = await EquippedGear.findOne({ userId });
+    // Use .lean() and select only needed fields for better performance
+    const equippedGear = await EquippedGear.findOne({ userId })
+      .select('userId gear')
+      .lean();
+      
     if (!equippedGear || !equippedGear.gear?.length) {
       return bonuses;
     }
@@ -259,9 +286,12 @@ async function getSectRodBonuses(userId) {
     defenseBonus: 0,
     speedBonus: 0
   };
-
   try {
-    const sectRod = await SectRod.findOne({ userId });
+    // Use .lean() and select only needed fields for better performance
+    const sectRod = await SectRod.findOne({ userId })
+      .select('userId mastType reelType lineType baseElement augments stats')
+      .lean();
+      
     if (!sectRod) {
       return bonuses;
     }
@@ -300,19 +330,17 @@ async function getSectRodBonuses(userId) {
       'Bone': { defenseBonus: 0.18 }, // +18% defense
       'Eldritch': { defenseBonus: 0.32 }, // +32% defense
       'Divine': { defenseBonus: 0.45 } // +45% defense
-    };
-
-    // Apply component bonuses
-    if (mastBonuses[sectRod.components.mast]) {
+    };    // Apply component bonuses
+    if (sectRod.components && mastBonuses[sectRod.components.mast]) {
       Object.assign(bonuses, mastBonuses[sectRod.components.mast]);
     }
-    if (lineBonuses[sectRod.components.line]) {
+    if (sectRod.components && lineBonuses[sectRod.components.line]) {
       bonuses.attackBonus += lineBonuses[sectRod.components.line].attackBonus || 0;
     }
-    if (reelBonuses[sectRod.components.reel]) {
+    if (sectRod.components && reelBonuses[sectRod.components.reel]) {
       bonuses.speedBonus += reelBonuses[sectRod.components.reel].speedBonus || 0;
     }
-    if (gripBonuses[sectRod.components.grip]) {
+    if (sectRod.components && gripBonuses[sectRod.components.grip]) {
       bonuses.defenseBonus += gripBonuses[sectRod.components.grip].defenseBonus || 0;
     }
 
@@ -394,10 +422,17 @@ function getElementColor(element) {
 
 // Function to force stat recalculation (call when user levels up or changes cultivation)
 async function forceStatRecalculation(userId, userData) {
-  let userStats = await UserStats.findOne({ userId });
-  
-  if (!userStats) {
+  // Use .lean() for initial read, then get full document for updates
+  let userStatsLean = await UserStats.findOne({ userId })
+    .select('userId statVersion lastCalculated')
+    .lean();
+    
+  let userStats;
+  if (!userStatsLean) {
     userStats = new UserStats({ userId });
+  } else {
+    // Get full document for updates
+    userStats = await UserStats.findOne({ userId });
   }
   
   // Force recalculation by incrementing version
@@ -413,17 +448,30 @@ async function forceStatRecalculation(userId, userData) {
 
 // Function to check if a user's stats are up to date
 async function areStatsUpToDate(userId, userData) {
-  const userStats = await UserStats.findOne({ userId });
+  // Use .lean() for read-only check
+  const userStats = await UserStats.findOne({ userId })
+    .select('userId lastCalculated statVersion')
+    .lean();
+    
   if (!userStats) return false;
   
-  return !userStats.needsRecalculation(userData);
+  // Check if recalculation is needed based on lean data
+  // This is a simplified version of needsRecalculation for lean objects
+  return userStats.lastCalculated && 
+         (Date.now() - userStats.lastCalculated.getTime()) < 300000; // 5 minutes
 }
 
 // Function to invalidate a user's cached stats (call when cultivation changes)
 async function invalidateUserStatsCache(userId) {
   try {
-    const userStats = await UserStats.findOne({ userId });
-    if (userStats) {
+    // Use lean query to check existence first
+    const userStatsExists = await UserStats.findOne({ userId })
+      .select('_id')
+      .lean();
+      
+    if (userStatsExists) {
+      // Get full document for updates
+      const userStats = await UserStats.findOne({ userId });
       userStats.statVersion++;
       userStats.lastCalculated = new Date(0); // Force recalculation
       await userStats.save();

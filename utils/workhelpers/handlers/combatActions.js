@@ -90,14 +90,17 @@ const STATUS_EFFECT_CONFIG = {
     reflect_damage: { type: 'duration', duration: 4, onApplyMessage: (actor) => actor === 'player' ? ' Your aura shimmers with reflective energy!' : ' Its skin shimmers with reflected power!' },
     minion_support: { type: 'duration', duration: 3, onApplyMessage: (actor) => actor === 'player' ? ' Your allies bolster your attacks!' : ' Minions appear to assist!' },
     knockdown: { type: 'duration', duration: 1, onApplyMessage: (target) => target === 'player' ? ' You are knocked to the ground!' : ' The creature is knocked down!' },
-    
-    // === NEW QI TECHNIQUE EFFECTS ===
+      // === NEW QI TECHNIQUE EFFECTS ===
     defense_reduction: { 
         type: 'modifier', 
         duration: 3, 
         onApplyMessage: (target) => target === 'player' ? ' Your defenses crumble!' : ' The creature\'s defenses weaken!',
         modifiers: { defenseReduction: 0.3 },
         tickMessage: (target, combat) => target === 'player' ? `👤 **[${combat?.userDisplayName?.toUpperCase() || 'HERO'}]** 🛡️ Your defenses are compromised!\n` : `🐉 **[MONSTER]** 🛡️ The creature's defenses are weakened!\n`
+    },
+    armor_pierce: { 
+        type: 'ability_meta', 
+        onApplyMessage: () => ' The attack pierces through armor like paper!' 
     },
     life_steal_aura: { 
         type: 'duration', 

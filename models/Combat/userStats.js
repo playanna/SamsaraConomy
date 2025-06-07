@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const userStatsSchema = new mongoose.Schema({
-  userId: { type: String, required: true, unique: true, index: true },
+  userId: { type: String, required: true, unique: true }, // unique already creates index
     // Core combat stats - these are persistent and calculated based on progression
   // These now store the FINAL values including all bonuses for consistency
   attack: { type: Number, default: 20 },

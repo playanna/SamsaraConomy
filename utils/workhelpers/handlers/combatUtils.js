@@ -18,10 +18,27 @@ async function sendReply(interaction, payload, isButton) {
       // Try to send to channel as fallback if interaction is expired
       if (interaction.channel) {
         try {
-          await interaction.channel.send({
-            content: `${interaction.user} - Combat session expired. Please start a new fight.`,
-            ...payload
-          });
+          // Create a simplified message for expired interactions
+          const expiredMessage = {
+            content: `${interaction.user} - Combat session expired. Please start a new fight.`
+          };
+          
+          // Add embed content to the message if available
+          if (payload.embeds && payload.embeds.length > 0) {
+            const embed = payload.embeds[0];
+            if (embed.title) {
+              expiredMessage.content += `\n**${embed.title}**`;
+            }
+            if (embed.description) {
+              // Truncate description if too long for a regular message
+              const desc = embed.description.length > 1000 
+                ? embed.description.substring(0, 1000) + '...' 
+                : embed.description;
+              expiredMessage.content += `\n${desc}`;
+            }
+          }
+          
+          await interaction.channel.send(expiredMessage);
         } catch (channelErr) {
           console.error('Channel send fallback failed:', channelErr);
         }
@@ -50,10 +67,31 @@ async function sendReply(interaction, payload, isButton) {
     
     // Handle specific Discord API errors
     if (err.code === 10062) { // Unknown interaction
-      console.warn(`Interaction expired for user ${interaction.user?.id}`);
+      console.warn(`Interaction expired for user ${interaction.user?.id} - attempting channel fallback`);
       // Clean up combat session if interaction expired
       if (interaction.user?.id) {
         removeCombatSession(interaction.user.id);
+      }
+      
+      // Try to send to channel as final fallback
+      if (interaction.channel && interaction.user) {
+        try {
+          const fallbackMessage = {
+            content: `${interaction.user} - Your combat session has expired. The results have been processed, but the interface is no longer active. Please start a new fight.`
+          };
+          
+          // Include basic embed info if available
+          if (payload.embeds && payload.embeds.length > 0) {
+            const embed = payload.embeds[0];
+            if (embed.title) {
+              fallbackMessage.content += `\n**Result:** ${embed.title}`;
+            }
+          }
+          
+          await interaction.channel.send(fallbackMessage);
+        } catch (channelErr) {
+          console.error('Channel fallback after 10062 error failed:', channelErr);
+        }
       }
       return;
     }
@@ -147,8 +185,9 @@ async function endCombat(interaction, combat, result) {
   removeCombatSession(interaction.user.id);
   
   let embed;
-    if (result === 'victory') {
-    try {      // Distribute victory rewards and update user's balance/XP
+  if (result === 'victory') {
+    try {      
+      // Distribute victory rewards and update user's balance/XP
       const rewardResults = await distributeVictoryRewards(interaction.user.id, creature);
       
       // Award technique points for combat victory
@@ -162,11 +201,19 @@ async function endCombat(interaction, combat, result) {
       // Fallback to original embed without reward details
       embed = createVictoryEmbed(interaction, combat);
     }
-  }else if (result === 'defeat') {
+  } else if (result === 'defeat') {
     embed = createDefeatEmbed(interaction, combat);
   } else if (result === 'flee') {
     embed = createFleeEmbed(interaction, combat);
     // Save health state for flee as well
+    await sendReply(interaction, { embeds: [embed], components: [] }, true);
+    return;
+  }
+  
+  // Check if interaction is still valid before trying to send results
+  if (isInteractionExpired(interaction)) {
+    console.warn(`Combat ended but interaction expired for user ${interaction.user.id}`);
+    // Still try to send via channel fallback (sendReply will handle this)
     await sendReply(interaction, { embeds: [embed], components: [] }, true);
     return;
   }
@@ -176,8 +223,18 @@ async function endCombat(interaction, combat, result) {
 }
 
 function isInteractionExpired(interaction) {
-  const interactionAge = Date.now() - interaction.createdTimestamp;
-  return interactionAge > 12 * 60 * 1000; // 12 minutes to be more conservative
+  try {
+    if (!interaction || !interaction.createdTimestamp) {
+      console.warn('Invalid interaction object for expiry check');
+      return true; // Treat as expired if we can't determine age
+    }
+    
+    const interactionAge = Date.now() - interaction.createdTimestamp;
+    return interactionAge > 12 * 60 * 1000; // 12 minutes to be more conservative
+  } catch (error) {
+    console.error('Error checking interaction expiry:', error);
+    return true; // Treat as expired on error
+  }
 }
 
 module.exports = {

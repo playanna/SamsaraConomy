@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { PermissionFlagsBits } = require('discord.js');
-const { gearItems } = require('../../utils/gearTables'); // Gear data
+const { gearDataManager } = require('../../utils/dataManagers'); // Lazy loading gear data
 const ShopInventory = require('../../models/Gears/shopInventory'); // DB model
 
 module.exports = {
@@ -8,12 +8,13 @@ module.exports = {
     .setName('gearshop')
     .setDescription('Populates the global gear shop with up to 4 items per gear slot.')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-
   async execute(interaction) {
     await interaction.deferReply({ ephemeral: true });
 
     try {
-      const newInventory = getRandomGearBySlot(gearItems, 4); // Max 4 per slot
+      // Get all gear items using lazy loading manager
+      const allGearItems = await gearDataManager.getAllGearItems();
+      const newInventory = getRandomGearBySlot(allGearItems, 4); // Max 4 per slot
 
       await ShopInventory.updateOne(
         { shopId: 'global_shop' },

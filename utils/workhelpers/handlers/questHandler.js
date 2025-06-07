@@ -1,8 +1,12 @@
 const ExpeditionSettings = require('../../../models/Multipliers/expeditionSetting.js');
 
 async function updateQuestProgressFromLoot({ userId, loots }) {
-  const settings = await ExpeditionSettings.findOne({ userId });
-  if (!settings || !settings.activeQuests) {
+  // Use .lean() for read-only query and select only needed fields
+  const settings = await ExpeditionSettings.findOne({ userId })
+    .select('userId activeQuests')
+    .lean();
+    
+  if (!settings || !settings.activeQuests || settings.activeQuests.length === 0) {
     return;
   }
   // Step 1: Build loot lookup map using multiple formats for flexible matching

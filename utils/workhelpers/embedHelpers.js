@@ -175,8 +175,6 @@ async function createSuccessEmbed({
       challengeText += `\n🎁 **Claimable**: ${availableRewards.join(', ')}`;
     }
   }
-
-  console.log(`Karmic image for realm ${settings.realm}: ${image}`);
   return createBaseEmbed({
     interaction,
     //title: isJackpot ? '业劫大祸 • Karmic Cataclysm' : '◈ KARMIC DESCENT ◈',
