@@ -4,7 +4,7 @@ const Hand = require('../../models/balance/hand');
 const Clanpoints = require('../../models/Clan/clanpoints');
 const Loss = require('../../models/balance/loss');
 const createBaseEmbed = require('../../utils/embed');
-const cache = require('../../utils/cache');
+const { cacheManager } = require('../../utils/cache/cacheManager');
 const {emojis} = require('../../data/emojis');
 const getUsername = require('../../utils/usernamesCache');
 
@@ -28,10 +28,8 @@ async function refreshLeaderboardCache(client, label = 'Manual') {
 
       for (const entry of topEntries) {
         await getUsername(client, guild, entry.userId);
-      }
-
-      const cacheKey = `leaderboard:${key}:${order}`;
-      cache.set(cacheKey, { topEntries, timestamp: Date.now() });
+      }      const cacheKey = `${key}:${order}`;
+      cacheManager.set('LEADERBOARD', cacheKey, { topEntries, timestamp: Date.now() });
     }
   }
   console.timeEnd(`[CACHE] ${label}`);
@@ -72,12 +70,10 @@ module.exports = {
 
     if (!Model) {
       return interaction.reply({ content: '❌ Invalid category selected.', ephemeral: true });
-    }
-
-    try {
+    }    try {
       await interaction.deferReply();
-      const cacheKey = `leaderboard:${categoryKey}:${order}`;
-      const cachedData = cache.get(cacheKey);
+      const cacheKey = `${categoryKey}:${order}`;
+      const cachedData = cacheManager.get('LEADERBOARD', cacheKey);
       let userRank;
 
       if (!cachedData?.topEntries) {

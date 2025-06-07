@@ -4,6 +4,7 @@ const Hand = require('../../models/balance/hand');
 const Clanpoints = require('../../models/Clan/clanpoints');
 const ExpeditionSettings = require('../../models/Multipliers/expeditionSetting');
 const {emojis} = require('../../data/emojis');
+const { getOrMigrateInventory, sellAllItemsOptimized } = require('../../utils/workhelpers/handlers/inventoryHandlerOptimized.js');
 
 function calculateSellMultiplier(traderXP) {
   return 1.0 + (traderXP / 1000) * 0.01;
@@ -68,11 +69,9 @@ module.exports = {
     const heavenlyorbs = emojis.heavenlyorbs;
 
     // Quick acknowledgment
-    await interaction.reply({ content: '🔄 *The void merchant examines your offerings...*', ephemeral: true });
-
-    try {
-      // Single database query to get inventory
-      const inventory = await Inventory.findOne({ userId }).lean();
+    await interaction.reply({ content: '🔄 *The void merchant examines your offerings...*', ephemeral: true });    try {
+      // Use optimized inventory system
+      const inventory = await getOrMigrateInventory(userId);
       if (!inventory) {
         const errorEmbed = new EmbedBuilder()
           .setDescription('*A disgruntled scoff comes from the void portal:* "Your inventory is emptier than a mortal\'s spiritual roots!"')
@@ -80,9 +79,9 @@ module.exports = {
         return sendQuickWebhookMessage(interaction.channel, errorEmbed);
       }
 
-      // Fast empty check using array lengths
+      // Fast empty check using Map sizes
       const categories = ['souls', 'artifacts', 'materials', 'alchemy', 'karma'];
-      const hasItems = categories.some(cat => inventory[cat]?.length > 0);
+      const hasItems = categories.some(cat => inventory[cat]?.size > 0);
       
       if (!hasItems) {
         const errorEmbed = new EmbedBuilder()
@@ -91,19 +90,8 @@ module.exports = {
         return sendQuickWebhookMessage(interaction.channel, errorEmbed);
       }
 
-      // Calculate values in a single pass
-      let baseValue = 0;
-      let soldItemsCount = 0;
-      
-      for (const category of categories) {
-        if (inventory[category]?.length > 0) {
-          for (const item of inventory[category]) {
-            const quantity = item.quantity || 1;
-            baseValue += (item.value || 0) * quantity;
-            soldItemsCount += quantity;
-          }
-        }
-      }      // Early exit if no valuable items
+      // Use optimized sell function
+      const { baseValue, soldItemsCount } = await sellAllItemsOptimized(userId);// Early exit if no valuable items
       if (baseValue === 0) {
         const errorEmbed = new EmbedBuilder()
           .setDescription('*The void merchant snorts:* "These worthless trinkets aren\'t even worth my time!"')
@@ -123,32 +111,15 @@ module.exports = {
           {},
           { upsert: true, new: true }
         )
-      ]);
-
-      const multiplier = calculateSellMultiplier(settings.traderXP);
+      ]);      const multiplier = calculateSellMultiplier(settings.traderXP);
       const finalValue = Math.floor(baseValue * multiplier);
 
-      // Update balance and clear inventory in parallel
-      const inventoryUpdate = Inventory.updateOne(
-        { userId },
-        { 
-          $set: {
-            souls: [],
-            artifacts: [],
-            materials: [],
-            alchemy: [],
-            karma: []
-          }
-        }
-      );
-
-      const balanceUpdate = Clanpoints.updateOne(
+      // Update balance (inventory already cleared by sellAllItemsOptimized)
+      await Clanpoints.updateOne(
         { userId },
         { $inc: { balance: finalValue } },
         { upsert: true }
-      );
-
-      await Promise.all([inventoryUpdate, balanceUpdate]);      // Create and send embed
+      );// Create and send embed
       const sellEmbed = new EmbedBuilder()
         .setDescription(`## ◈ Merchant Express Service◈ \n**${soldItemsCount} trinkets** dissolve into the void—barely worth its notice.\n> -# *A pitiful offering.*\n\n**\`${finalValue}\` ${heavenlyorbs}** clatter before you as the void's portal closes.`)
         .setColor(0x2ECC71)

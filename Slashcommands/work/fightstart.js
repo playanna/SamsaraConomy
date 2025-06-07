@@ -45,11 +45,9 @@ async function showEncounterChoice(interaction, userData, isButton = false) {
         description: "A dimensional rift tears open nearby, revealing a pocket realm where powerful creatures dwell. The air crackles with unstable spiritual energy.",
         flavor: "Reality bends around this otherworldly breach..."
       }
-    ];
-
-    const encounter = encounterTypes[Math.floor(Math.random() * encounterTypes.length)];
+    ];    const encounter = encounterTypes[Math.floor(Math.random() * encounterTypes.length)];
     const currentRealm = userData.settings?.realm || 'verdant';
-    const creature = getRandomCreature(currentRealm);
+    const creature = await getRandomCreature(currentRealm);
 
     const embed = new EmbedBuilder()
       .setTitle(encounter.title)
@@ -123,13 +121,14 @@ async function startCombat(interaction, isButton = false) {
         flags: 64 // MessageFlags.Ephemeral
       }, isButton);
     }
-    
-    // Get user's current realm for creature selection
+      // Get user's current realm for creature selection
     const currentRealm = userData.settings?.realm || 'verdant';
-    const creature = getRandomCreature(currentRealm);
+    const creature = await getRandomCreature(currentRealm);
     
     // Get user's display name (nickname > globalName > username)
-    const userDisplayName = await getUsername(interaction.client, interaction.guild, userId);    // Create combat session with health document and display name
+    const userDisplayName = await getUsername(interaction.client, interaction.guild, userId);
+    
+    // Create combat session with health document and display name
     const combat = createCombatSession(userId, creature, userStats, userData.healthData, userDisplayName);
     
     // Create initial combat message with dual embeds

@@ -4,28 +4,29 @@ const Inventory = require('../../../models/Multipliers/inventory.js');
 const ExpeditionSettings = require('../../../models/Multipliers/expeditionSetting.js');
 const { handleLootStorage, mergeLootIntoInventory } = require('./inventoryHandler.js');
 const { categorizeLoot } = require('./lootHandler.js');
-const creatures = require('../../../data/creatures.js');
+const { creatureDataManager } = require('../../dataManagers'); // Lazy loading creature data
 
 async function distributeVictoryRewards(userId, creature) {
   try {
     const rewards = creature.rewards;
-    const creatureRealm = findCreatureRealm(creature.id);
-      // Find or create user's clanpoints, inventory, and expedition settings
+    const creatureRealm = await findCreatureRealm(creature.id);
+    
+    // Optimize database operations with batch updates and .lean() queries where appropriate
     const [clanpoints, inventory] = await Promise.all([
       Clanpoints.findOneAndUpdate(
         { userId },
         { $inc: { balance: rewards.coins } },
-        { upsert: true, new: true }
-      ),
+        { upsert: true, new: true, select: 'userId balance' }
+      ).lean(),
       Inventory.findOneAndUpdate(
         { userId },
         { $inc: { totalKarmicDebt: rewards.xp } },
-        { upsert: true, new: true }
-      )
-    ]);
-
-    // Find or create expedition settings separately
-    let expeditionSettings = await ExpeditionSettings.findOne({ userId });
+        { upsert: true, new: true, select: 'userId totalKarmicDebt' }
+      ).lean()
+    ]);    // Find or create expedition settings - don't use .lean() since we need to save later
+    let expeditionSettings = await ExpeditionSettings.findOne({ userId })
+      .select('userId combatHistory');
+      
     if (!expeditionSettings) {
       expeditionSettings = new ExpeditionSettings({ userId });
       await expeditionSettings.save();
@@ -170,13 +171,12 @@ function determineItemRealm(element) {
   return realmMapping[element] || 'verdant';
 }
 
-function findCreatureRealm(creatureId) {
-  // Search through all realms to find which one contains this creature
-  for (const [realmName, creatureList] of Object.entries(creatures)) {
-    const foundCreature = creatureList.find(creature => creature.id === creatureId);
-    if (foundCreature) {
-      return realmName;
-    }
+async function findCreatureRealm(creatureId) {
+  // Use the optimized findCreatureById method that returns both creature and realm
+  const creatureWithRealm = creatureDataManager.findCreatureById(creatureId);
+  
+  if (creatureWithRealm && creatureWithRealm.realm) {
+    return creatureWithRealm.realm;
   }
   
   // Fallback to verdant if creature not found
@@ -185,6 +185,12 @@ function findCreatureRealm(creatureId) {
 
 async function updateMonsterSlayingLog(expeditionSettings, creature, creatureRealm, rewards, obtainedItems) {
   try {
+    // Ensure expeditionSettings exists
+    if (!expeditionSettings) {
+      console.error('ExpeditionSettings is null or undefined');
+      return;
+    }
+
     // Initialize monster slaying log if it doesn't exist
     if (!expeditionSettings.monsterSlayingLog) {
       expeditionSettings.monsterSlayingLog = {
@@ -208,10 +214,32 @@ async function updateMonsterSlayingLog(expeditionSettings, creature, creatureRea
           weeklyKills: 0,
           weeklyResetDate: new Date()
         }
-      };
-    }
+      };    }
 
     const log = expeditionSettings.monsterSlayingLog;
+    
+    // Ensure all required properties exist (for existing records that might be incomplete)
+    if (!log.slainByRealm) {
+      log.slainByRealm = {
+        verdant: 0, moon: 0, crimson: 0, abyssal: 0, chains: 0, hells: 0, summit: 0
+      };
+    }
+    if (!log.slainByMonster || !Array.isArray(log.slainByMonster)) {
+      log.slainByMonster = [];
+    }
+    if (!log.achievements || !Array.isArray(log.achievements)) {
+      log.achievements = [];
+    }
+    if (!log.statistics) {
+      log.statistics = {
+        longestKillStreak: 0,
+        currentKillStreak: 0,
+        favoriteRealm: 'verdant',
+        strongestMonsterSlain: {},
+        weeklyKills: 0,
+        weeklyResetDate: new Date()
+      };
+    }
     
     // Update total and realm counts
     log.totalMonstersSlain = (log.totalMonstersSlain || 0) + 1;
@@ -254,8 +282,7 @@ async function updateMonsterSlayingLog(expeditionSettings, creature, creatureRea
       if (kills > maxKills) {
         maxKills = kills;
         favoriteRealm = realm;
-      }
-    }
+      }    }
     log.statistics.favoriteRealm = favoriteRealm;
 
     // Update or create monster-specific entry
@@ -264,9 +291,13 @@ async function updateMonsterSlayingLog(expeditionSettings, creature, creatureRea
     if (monsterEntry) {
       // Update existing entry
       monsterEntry.killCount = (monsterEntry.killCount || 0) + 1;
-      monsterEntry.lastSlainAt = now;
-      monsterEntry.totalXpGained = (monsterEntry.totalXpGained || 0) + rewards.xp;
+      monsterEntry.lastSlainAt = now;      monsterEntry.totalXpGained = (monsterEntry.totalXpGained || 0) + rewards.xp;
       monsterEntry.totalCoinsGained = (monsterEntry.totalCoinsGained || 0) + rewards.coins;
+      
+      // Ensure itemsObtained array exists
+      if (!monsterEntry.itemsObtained || !Array.isArray(monsterEntry.itemsObtained)) {
+        monsterEntry.itemsObtained = [];
+      }
       
       // Add obtained items
       for (const item of obtainedItems) {
@@ -302,6 +333,11 @@ async function updateMonsterSlayingLog(expeditionSettings, creature, creatureRea
 }
 
 async function checkAndUnlockAchievements(log, creature, creatureRealm) {
+  // Ensure achievements array exists
+  if (!log.achievements || !Array.isArray(log.achievements)) {
+    log.achievements = [];
+  }
+  
   const achievements = [];
   
   // Kill count achievements

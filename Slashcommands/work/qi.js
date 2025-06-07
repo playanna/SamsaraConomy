@@ -14,9 +14,11 @@ const INTERACTION_TIMEOUT_MS = 300000; // 5 minutes
 // Helper function to calculate and format technique damage exactly like in combat
 async function formatTechniqueDamage(userId, technique) {
   try {
-    // Get stored final stats that include all bonuses
+    // Get stored final stats that include all bonuses - use .lean() for read-only access
     const UserStats = require('../../models/Combat/userStats');
-    const userStats = await UserStats.findOne({ userId });
+    const userStats = await UserStats.findOne({ userId })
+      .select('userId attack')
+      .lean();
     
     let finalAttack = 20; // Default fallback
     if (userStats) {

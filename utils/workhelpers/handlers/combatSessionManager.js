@@ -1,5 +1,5 @@
 // Combat state management for fight system
-const creatures = require('../../../data/creatures.js');
+const { creatureDataManager } = require('../../dataManagers'); // Lazy loading creature data
 
 // Store active combat sessions
 const activeCombats = new Map();
@@ -38,13 +38,9 @@ class CombatSession {
   }
 }
 
-function getRandomCreature(realm) {
-  const realmCreatures = creatures[realm];
-  if (!realmCreatures || realmCreatures.length === 0) {
-    // Fallback to verdant realm
-    return creatures.verdant[Math.floor(Math.random() * creatures.verdant.length)];
-  }
-  return realmCreatures[Math.floor(Math.random() * realmCreatures.length)];
+async function getRandomCreature(realm) {
+  // Use the optimized getRandomCreatureByRealm method
+  return creatureDataManager.getRandomCreatureByRealm(realm);
 }
 
 function createCombatSession(userId, creature, userStats, userHealthDoc, userDisplayName = 'HERO') {

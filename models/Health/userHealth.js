@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const userHealthSchema = new mongoose.Schema({
-  userId: { type: String, required: true, unique: true, index: true },
+  userId: { type: String, required: true, unique: true }, // unique already creates index
   currentHealth: { type: Number, default: 100 },
   maxHealth: { type: Number, default: 100 },
   lastCombatAt: { type: Date },

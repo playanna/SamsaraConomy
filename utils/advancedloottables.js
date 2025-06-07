@@ -1,3 +1,6 @@
+// Advanced loot tables with lazy loading integration
+const { lootDataManager } = require('./dataManagers');
+
 const lootTables = {
     rarities: {
       common: { weight: 60, valueMultiplier: 1.0 },
@@ -131,13 +134,14 @@ const lootTables = {
       if (roll < 99) return 'epic';
       return 'legendary';
     },
-  
-    getRealmLoot: function(realmKey, playerLevel = 1) {
-      const realm = this.realms[realmKey] || this.realms.verdant;
+    getRealmLoot: async function(realmKey, playerLevel = 1) {
+      // Use lazy loading manager to get realm-specific loot data
+      const realmLoot = await lootDataManager.getLootByRealm(realmKey);
+      const realm = realmLoot || (await lootDataManager.getLootByRealm('verdant')); // fallback to verdant
       const rarity = this.getRarity();
       const typeRoll = Math.random();
     
-      // Define loot categories in priority order
+      // Define loot categories in priority order from lazy-loaded data
       const lootSources = [
         realm.materials,
         realm.gear,
@@ -188,10 +192,9 @@ const lootTables = {
       );
     }
   };
-
-  function getSmartLoot(player) {
+  async function getSmartLoot(player) {
     const { realm, level, clan } = player;
-    let loot = lootTables.getRealmLoot(realm, level);
+    let loot = await lootTables.getRealmLoot(realm, level);
   
 
     if (clan) {

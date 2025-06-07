@@ -34,14 +34,14 @@ module.exports = {
     
     if (!techniqueId || typeof techniqueId !== 'string') {
       return safeSendError(interaction, 'Invalid technique selection');
-    }
-
-    try {
-      // Database queries with error handling
-      const userTechniques = await UserQiTechniques.findOne({ userId }).catch(dbError => {
-        console.error('Database error finding user techniques:', dbError);
-        throw new Error('Database connection failed');
-      });
+    }    try {
+      // Optimized database query with .select() for needed fields only
+      const userTechniques = await UserQiTechniques.findOne({ userId })
+        .select('userId equippedTechniques learnedTechniques')
+        .catch(dbError => {
+          console.error('Database error finding user techniques:', dbError);
+          throw new Error('Database connection failed');
+        });
 
       const technique = getTechniqueById(techniqueId);
       

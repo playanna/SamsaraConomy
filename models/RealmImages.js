@@ -25,8 +25,7 @@ const realmImageSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Index for faster queries
-realmImageSchema.index({ realmKey: 1 });
+// Note: Index not needed - realmKey is unique which creates implicit index
 
 // Static method to get random image for a realm
 realmImageSchema.statics.getRandomImage = async function(realmKey) {

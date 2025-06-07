@@ -109,8 +109,31 @@ const { REALMS, getRandomRealmImage, initializeDefaultRealmImages } = require('.
             }
         }
     } else {
-        console.warn(`Warning: The events directory (${eventsPath}) does not exist.`);
-    }
+        console.warn(`Warning: The events directory (${eventsPath}) does not exist.`);    }
+
+    // Initialize unified cache manager and memory monitoring
+    const { cacheManager } = require('./utils/cache/cacheManager');
+    
+    // Initialize lazy loading data managers
+    const { dataManagerCoordinator } = require('./utils/dataManagers');
+    console.log('🚀 Initializing static data lazy loading managers...');
+    await dataManagerCoordinator.initializeAll();
+    
+    // Log cache statistics every 10 minutes
+    setInterval(() => {
+        cacheManager.logStats();
+        dataManagerCoordinator.logStats();
+    }, 600000);
+    
+    // Handle graceful shutdown and cache cleanup
+    process.on('SIGINT', async () => {
+        console.log('\n[SHUTDOWN] Gracefully shutting down...');
+        cacheManager.logStats();
+        dataManagerCoordinator.logStats();
+        await dataManagerCoordinator.cleanup();
+        console.log('[SHUTDOWN] Data managers cleaned up. Cache statistics logged. Exiting...');
+        process.exit(0);
+    });
 
     // Finally, login to Discord
     client.login(BOT_TOKEN).catch(error => {

@@ -4,7 +4,7 @@ const Hand = require('../models/balance/hand');
 const Clanpoints = require('../models/Clan/clanpoints');
 const Loss = require('../models/balance/loss');
 const createBaseEmbed = require('../utils/embed');
-const cache = require('../utils/cache');
+const { cacheManager } = require('../utils/cache/cacheManager');
 const {emojis} = require('../data/emojis');
 const getUsername = require('../utils/usernamesCache');
 
@@ -23,8 +23,8 @@ async function loadCache() {
         .sort({ [field]: sortOrder })
         .limit(10)
         .lean();
-      const cacheKey = `leaderboard:${key}:${order}`;
-      cache.set(cacheKey, { topEntries, timestamp: Date.now() });
+      const cacheKey = `${key}:${order}`;
+      cacheManager.set('LEADERBOARD', cacheKey, { topEntries, timestamp: Date.now() });
     }
   }
 }
@@ -42,11 +42,10 @@ async function handleLeaderboard({ categoryKey, order = 'desc', interaction, mes
     const reply = '❌ Invalid category selected.';
     return interaction ? interaction.reply({ content: reply, ephemeral: true }) : message.reply(reply);
   }
-
   try {
     if (interaction) await interaction.deferReply();
-    const cacheKey = `leaderboard:${categoryKey}:${order}`;
-    const cachedData = cache.get(cacheKey);
+    const cacheKey = `${categoryKey}:${order}`;
+    const cachedData = cacheManager.get('LEADERBOARD', cacheKey);
     let userRank;
 
     if (!cachedData || !cachedData.topEntries) {

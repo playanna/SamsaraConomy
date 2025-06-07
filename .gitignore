@@ -139,3 +139,6 @@ nohup.out
 # Any additional config files that might contain secrets
 local_config.json
 private_config.json
+roadmap.md
+docs/database-optimization-summary.md
+docs/inventory-optimization-summary.md

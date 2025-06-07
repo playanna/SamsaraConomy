@@ -1,10 +1,12 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require('discord.js');
 const Inventory = require('../../models/Multipliers/inventory');
+const InventoryOptimized = require('../../models/Multipliers/inventoryOptimized');
 const Hand = require('../../models/balance/hand');
 const Clanpoints = require('../../models/Clan/clanpoints');
 const ExpeditionSettings = require('../../models/Multipliers/expeditionSetting');
 const {sendStorySequence} = require('../../utils/sendStorySequence');
 const {emojis} = require('../../data/emojis');
+const { getOrMigrateInventory, sellAllItemsOptimized } = require('../../utils/workhelpers/handlers/inventoryHandlerOptimized.js');
 
 function calculateSellMultiplier(traderXP) {
   return 1.0 + (traderXP / 1000) * 0.01;
@@ -20,21 +22,37 @@ module.exports = {
   async execute(interaction) {
     await interaction.deferReply();
 
-    const heavenlyorbs = emojis.heavenlyorbs;
-    
-    try {
-      // Find all inventories in the database that have items
-      const allInventories = await Inventory.find({
-        $or: [
-          { 'souls.0': { $exists: true } },
-          { 'artifacts.0': { $exists: true } },
-          { 'materials.0': { $exists: true } },
-          { 'alchemy.0': { $exists: true } },
-          { 'karma.0': { $exists: true } }
-        ]
-      });
+    const heavenlyorbs = emojis.heavenlyorbs;    try {
+      // Find all users with items in both old and new inventory systems
+      const [oldInventories, optimizedInventories] = await Promise.all([
+        Inventory.find({
+          $or: [
+            { 'souls.0': { $exists: true } },
+            { 'artifacts.0': { $exists: true } },
+            { 'materials.0': { $exists: true } },
+            { 'alchemy.0': { $exists: true } },
+            { 'karma.0': { $exists: true } }
+          ]
+        }),
+        InventoryOptimized.find({
+          $or: [
+            { 'metadata.totalItems': { $gt: 0 } },
+            { 'souls': { $ne: null, $exists: true } },
+            { 'artifacts': { $ne: null, $exists: true } },
+            { 'materials': { $ne: null, $exists: true } },
+            { 'alchemy': { $ne: null, $exists: true } },
+            { 'karma': { $ne: null, $exists: true } }
+          ]
+        })
+      ]);
 
-      if (allInventories.length === 0) {
+      // Combine all user IDs
+      const allUserIds = new Set([
+        ...oldInventories.map(inv => inv.userId),
+        ...optimizedInventories.map(inv => inv.userId)
+      ]);
+
+      if (allUserIds.size === 0) {
         return interaction.editReply({
           content: '*The void portal scans all realms...* "Not a single trinket exists across all dimensions. Even rats have more treasure!"'
         });
@@ -43,60 +61,42 @@ module.exports = {
       let totalUsersProcessed = 0;
       let totalItemsSold = 0;
       let totalValueGenerated = 0;
-      const categories = ['souls', 'artifacts', 'materials', 'alchemy', 'karma'];
 
-      // Process each user's inventory
-      for (const inventory of allInventories) {
-        const userId = inventory.userId;
-        
-        let userBaseValue = 0;
-        let userItemsCount = 0;
+      // Process each user using optimized system
+      for (const userId of allUserIds) {
+        try {
+          // Use optimized sell function which handles migration automatically
+          const { baseValue, soldItemsCount } = await sellAllItemsOptimized(userId);
 
-        // Calculate value for this user's inventory
-        for (const category of categories) {
-          if (inventory[category] && inventory[category].length > 0) {
-            for (const item of inventory[category]) {
-              const quantity = item.quantity || 1;
-              userBaseValue += (item.value || 0) * quantity;
-              userItemsCount += quantity;
-            }
+          if (baseValue > 0) {
+            // Get or create user's settings and balance records
+            const [settings, clanpoints] = await Promise.all([
+              ExpeditionSettings.findOneAndUpdate(
+                { userId },
+                { $inc: { traderXP: baseValue / 10 } },
+                { upsert: true, new: true }
+              ),
+              Clanpoints.findOneAndUpdate(
+                { userId },
+                {},
+                { upsert: true, new: true }
+              )
+            ]);
+
+            const multiplier = calculateSellMultiplier(settings.traderXP);
+            const finalValue = Math.floor(baseValue * multiplier);
+
+            // Add to user's clan points balance
+            clanpoints.balance += finalValue;
+            await clanpoints.save();
+
+            totalUsersProcessed++;
+            totalItemsSold += soldItemsCount;
+            totalValueGenerated += finalValue;
           }
-        }
-
-        if (userBaseValue > 0) {
-          // Get or create user's settings and balance records
-          const [settings, clanpoints] = await Promise.all([
-            ExpeditionSettings.findOneAndUpdate(
-              { userId },
-              { $inc: { traderXP: userBaseValue / 10 } },
-              { upsert: true, new: true }
-            ),
-            Clanpoints.findOneAndUpdate(
-              { userId },
-              {},
-              { upsert: true, new: true }
-            )
-          ]);
-
-          const multiplier = calculateSellMultiplier(settings.traderXP);
-          const finalValue = Math.floor(userBaseValue * multiplier);
-
-          // Add to user's clan points balance
-          clanpoints.balance += finalValue;
-
-          // Clear inventory
-          categories.forEach(cat => inventory[cat] = []);
-
-          // Save changes
-          await Promise.all([
-            settings.save(),
-            clanpoints.save(),
-            inventory.save()
-          ]);
-
-          totalUsersProcessed++;
-          totalItemsSold += userItemsCount;
-          totalValueGenerated += finalValue;
+        } catch (userError) {
+          console.error(`Error processing user ${userId}:`, userError);
+          // Continue processing other users
         }
       }
 

@@ -7,8 +7,12 @@ const { getTechniqueById } = require('../../../data/qiTechniques.js');
  */
 async function getUserEquippedTechniques(userId) {
   try {
-    const userTechniques = await UserQiTechniques.findOne({ userId });
-    if (!userTechniques || !userTechniques.equippedTechniques.length) {
+    // Use .lean() and select only needed fields for better performance
+    const userTechniques = await UserQiTechniques.findOne({ userId })
+      .select('userId equippedTechniques')
+      .lean();
+      
+    if (!userTechniques || !userTechniques.equippedTechniques?.length) {
       return [];
     }
     
@@ -143,14 +147,18 @@ function reduceCooldowns(combat) {
 async function awardKarmicDebt(userId, points = 1) {
   try {
     const Inventory = require('../../../models/Multipliers/inventory.js');
-    let inventory = await Inventory.findOne({ userId });
-    if (!inventory) {
-      inventory = new Inventory({ userId, totalKarmicDebt: points });
-      await inventory.save();
-    } else {
-      inventory.totalKarmicDebt += points;
-      await inventory.save();
-    }
+    
+    // Use findOneAndUpdate for atomic operation with .lean() optimization
+    const inventory = await Inventory.findOneAndUpdate(
+      { userId },
+      { $inc: { totalKarmicDebt: points } },
+      { 
+        new: true, 
+        upsert: true,
+        select: 'userId totalKarmicDebt'
+      }
+    ).lean();
+    
     return true;
   } catch (error) {
     console.error('Error awarding karmic debt:', error);
@@ -163,6 +171,13 @@ async function awardKarmicDebt(userId, points = 1) {
  */
 async function useTechnique(userId, techniqueId) {
   try {
+    // Use lean query first to check, then get full document for updates
+    const userTechniquesCheck = await UserQiTechniques.findOne({ userId })
+      .select('_id')
+      .lean();
+      
+    if (!userTechniquesCheck) return;
+    
     const userTechniques = await UserQiTechniques.findOne({ userId });
     if (!userTechniques) return;
     
@@ -208,11 +223,14 @@ async function useTechnique(userId, techniqueId) {
  */
 async function initializeUserTechniques(userId) {
   try {
-    let userTechniques = await UserQiTechniques.findOne({ userId });
+    // Use lean query first to check existence
+    let userTechniquesExists = await UserQiTechniques.findOne({ userId })
+      .select('_id')
+      .lean();
     
-    if (!userTechniques) {
+    if (!userTechniquesExists) {
       // Create new user techniques with basic starter technique
-      userTechniques = new UserQiTechniques({
+      const userTechniques = new UserQiTechniques({
         userId,
         equippedTechniques: [{
           slotNumber: 1,
@@ -220,7 +238,8 @@ async function initializeUserTechniques(userId) {
           name: 'Iron Fist Technique',
           description: 'Channel qi into your fists to deliver devastating blows',
           masteryLevel: 1,
-          uses: 0        }],
+          uses: 0
+        }],
         learnedTechniques: [{
           techniqueId: 'iron_fist',
           masteryLevel: 1,
@@ -229,9 +248,11 @@ async function initializeUserTechniques(userId) {
       });
       
       await userTechniques.save();
+      return userTechniques;
+    } else {
+      // Return the existing document
+      return await UserQiTechniques.findOne({ userId });
     }
-    
-    return userTechniques;
   } catch (error) {
     console.error('Error initializing user techniques:', error);
     return null;

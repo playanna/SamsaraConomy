@@ -10,6 +10,7 @@ const Inventory = require('../../models/Multipliers/inventory');
 const Hand = require('../../models/balance/hand');
 const ExpeditionSettings = require('../../models/Multipliers/expeditionSetting');
 const { sendStorySequence, sendWithMeditation } = require('../../utils/sendStorySequence.js');
+const { getOrMigrateInventory, sellAllItemsOptimized } = require('../../utils/workhelpers/handlers/inventoryHandlerOptimized.js');
 
 function calculateSellMultiplier(traderXP) {
   return 1.0 + (traderXP / 1000) * 0.01;
@@ -69,12 +70,10 @@ module.exports = {
           await sendWithMeditation(interaction, { content: '*You bow respectfully and step away from the pavilion.*', embeds: [], components: [], ephemeral: true });
           collector.stop();
           return;
-        }
-
-        if (i.customId === 'contribute_items') {
+        }        if (i.customId === 'contribute_items') {
           await i.deferUpdate();
-          const inventory = await Inventory.findOne({ userId });
-          if (!inventory || !['souls', 'artifacts', 'materials', 'alchemy', 'karma'].some(k => inventory[k]?.length)) {
+          const inventory = await getOrMigrateInventory(userId);
+          if (!inventory || !['souls', 'artifacts', 'materials', 'alchemy', 'karma'].some(k => inventory[k]?.size > 0)) {
             await sendWithMeditation( interaction, {
               content: '📜 *The Treasury Elder frowns:* "You bring me nothing of value. Return when your pouch is not empty."',
               components: [],
@@ -91,18 +90,18 @@ module.exports = {
           await sendStorySequence(interaction.channel, [
             { sender: 'elder', text: '*Hmmm... these are... acceptable.*' },
             { sender: 'narrator', text: '*His hand flickers with divine light, assessing your belongings.*' }
-          ], 120);
-
-          // Value calculation
+          ], 120);          // Value calculation using optimized inventory
           let baseValue = 0;
           let soldItemsCount = 0;
           const categories = ['souls', 'artifacts', 'materials', 'alchemy', 'karma'];
 
           for (const category of categories) {
-            for (const item of inventory[category]) {
-              const quantity = item.quantity || 1;
-              baseValue += (item.value || 0) * quantity;
-              soldItemsCount += quantity;
+            if (inventory[category] && inventory[category].size > 0) {
+              for (const [itemId, item] of inventory[category]) {
+                const quantity = item.quantity || 1;
+                baseValue += (item.value || 0) * quantity;
+                soldItemsCount += quantity;
+              }
             }
           }
 
@@ -146,12 +145,9 @@ module.exports = {
             embeds: [offerEmbed],
             components: [dealButtons],
           });
-        }
-
-        // Handle deal acceptance
+        }        // Handle deal acceptance using optimized system
         if (i.customId === 'accept_deal') {
           await i.deferUpdate();
-          const inventory = await Inventory.findOne({ userId });
           const hand = await Hand.findOneAndUpdate(
             { userId },
             {},
@@ -159,18 +155,8 @@ module.exports = {
           );
           const settings = await ExpeditionSettings.findOne({ userId });
 
-          let baseValue = 0;
-          let soldItemsCount = 0;
-          const categories = ['souls', 'artifacts', 'materials', 'alchemy', 'karma'];
-
-          for (const category of categories) {
-            for (const item of inventory[category]) {
-              const quantity = item.quantity || 1;
-              baseValue += (item.value || 0) * quantity;
-              soldItemsCount += quantity;
-            }
-            inventory[category] = [];
-          }
+          // Use optimized sell function
+          const { baseValue, soldItemsCount } = await sellAllItemsOptimized(userId);
 
           const traderXpGained = baseValue / 10;
           settings.traderXP += traderXpGained;
@@ -178,7 +164,7 @@ module.exports = {
           const finalValue = Math.floor(baseValue * settings.sellMultiplier);
           hand.balance += finalValue;
 
-          await Promise.all([inventory.save(), settings.save(), hand.save()]);
+          await Promise.all([settings.save(), hand.save()]);
 
           // Final story and receipt
           await sendStorySequence(interaction.channel, [

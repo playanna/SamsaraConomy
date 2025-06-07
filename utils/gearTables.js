@@ -1,4 +1,6 @@
 // utils/gearTable.js
+// Legacy compatibility layer - uses lazy loading manager internally
+const { gearDataManager } = require('./dataManagers');
 
 const gearItems = [
     {
@@ -205,28 +207,26 @@ const gearItems = [
       }
     }
   ];
-  
-  /**
-   * Returns all gear items, or filters by slot.
+    /**
+   * Returns all gear items, or filters by slot using lazy loading manager
    * @param {string} [slot] Optional slot to filter by (e.g., 'amulet', 'boots').
    * @returns {Array}
    */
-  function getGearItems(slot) {
-    if (!slot) return gearItems;
-    return gearItems.filter(item => item.slot === slot);
+  async function getGearItems(slot) {
+    return await gearDataManager.getGearBySlot(slot);
   }
 
   /**
-   * Get gear item by name
+   * Get gear item by name using lazy loading manager
    * @param {string} name
    * @returns {Object|null}
    */
-  function findGearByName(name) {
-    return gearItems.find(item => item.name === name) || null;
+  async function findGearByName(name) {
+    return await gearDataManager.getGearByName(name);
   }
 
   module.exports = {
     getGearItems,
     findGearByName,
-    gearItems // Add gearItems to the exports
+    gearItems // Keep for backward compatibility - static fallback
   };
