@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, EmbedBuilder } = require('discord.js');
 const Inventory = require('../../models/Multipliers/inventory');
-const { getPaginatedInventory, getOrMigrateInventory } = require('../../utils/workhelpers/handlers/inventoryHandlerOptimized');
+const { getPaginatedInventory, getOrMigrateInventory } = require('../../utils/workhelpers/handlers/inventoryHandler');
 const {emojis} = require('../../data/emojis');
 
 module.exports = {

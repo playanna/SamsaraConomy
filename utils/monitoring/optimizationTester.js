@@ -15,7 +15,7 @@ class OptimizationTester {
         console.log('🧪 [TEST] Testing inventory optimization...');
         
         try {
-            const { getOrMigrateInventory, getPaginatedInventory } = require('../workhelpers/handlers/inventoryHandlerOptimized.js');
+            const { getOrMigrateInventory, getPaginatedInventory } = require('../workhelpers/handlers/inventoryHandler.js');
             
             // Test migration and retrieval performance
             const testUserId = 'test_user_' + Date.now();

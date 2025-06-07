@@ -6,7 +6,7 @@ const Clanpoints = require('../../models/Clan/clanpoints');
 const ExpeditionSettings = require('../../models/Multipliers/expeditionSetting');
 const {sendStorySequence} = require('../../utils/sendStorySequence');
 const {emojis} = require('../../data/emojis');
-const { getOrMigrateInventory, sellAllItemsOptimized } = require('../../utils/workhelpers/handlers/inventoryHandlerOptimized.js');
+const { getOrMigrateInventory, sellAllItemsOptimized } = require('../../utils/workhelpers/handlers/inventoryHandler.js');
 
 function calculateSellMultiplier(traderXP) {
   return 1.0 + (traderXP / 1000) * 0.01;

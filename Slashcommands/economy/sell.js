@@ -10,7 +10,7 @@ const Inventory = require('../../models/Multipliers/inventory');
 const Hand = require('../../models/balance/hand');
 const ExpeditionSettings = require('../../models/Multipliers/expeditionSetting');
 const { sendStorySequence, sendWithMeditation } = require('../../utils/sendStorySequence.js');
-const { getOrMigrateInventory, sellAllItemsOptimized } = require('../../utils/workhelpers/handlers/inventoryHandlerOptimized.js');
+const { getOrMigrateInventory, sellAllItemsOptimized } = require('../../utils/workhelpers/handlers/inventoryHandler.js');
 
 function calculateSellMultiplier(traderXP) {
   return 1.0 + (traderXP / 1000) * 0.01;
